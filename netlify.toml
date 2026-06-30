@@ -1,0 +1,16 @@
+# Configuração de deploy do Netlify
+# A raiz do repositório já contém os arquivos HTML estáticos.
+
+[build]
+  publish = "."
+
+# Atalhos amigáveis (opcionais)
+[[redirects]]
+  from = "/form"
+  to = "/feedback_form.html"
+  status = 200
+
+[[redirects]]
+  from = "/view"
+  to = "/feedback_view.html"
+  status = 200

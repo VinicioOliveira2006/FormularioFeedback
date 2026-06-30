@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Feedbacks · Maxx Net</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0f172a;--surf:#1e293b;--surf2:#334155;--bdr:#475569;
+  --txt:#f1f5f9;--muted:#94a3b8;--acc:#3b82f6;
+  --leve:#22c55e;--media:#f59e0b;--grave:#ef4444;--purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
+header{padding:20px 32px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:1.25rem;font-weight:700;letter-spacing:-.3px}
+header p{color:var(--muted);font-size:.8rem;margin-top:2px}
+.badge-hdr{background:var(--surf2);border:1px solid var(--bdr);border-radius:20px;padding:4px 12px;font-size:.75rem;color:var(--muted)}
+#filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 32px;background:var(--surf);border-bottom:1px solid var(--bdr)}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.fg select,.fg input[type=date]{background:var(--surf2);color:var(--txt);border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.82rem;font-family:inherit;min-width:110px}
+.fg select:focus,.fg input:focus{outline:2px solid var(--acc);border-color:transparent}
+#btn-reset{padding:6px 14px;background:var(--surf2);border:1px solid var(--bdr);color:var(--txt);border-radius:6px;cursor:pointer;font-size:.82rem;align-self:flex-end;transition:background .15s}
+#btn-reset:hover{background:var(--acc);border-color:var(--acc);color:#fff}
+#finfo{font-size:.72rem;color:var(--muted);align-self:flex-end}
+main{padding:20px 32px;display:flex;flex-direction:column;gap:18px}
+#kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kc{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:18px 16px;position:relative;overflow:hidden}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kc.blue::before{background:var(--acc)}
+.kc.green::before{background:var(--leve)}
+.kc.red::before{background:var(--grave)}
+.kc.purple::before{background:var(--purple)}
+.kl{font-size:.67rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.kv{font-size:1.9rem;font-weight:700;line-height:1}
+.kv.sm{font-size:.88rem;line-height:1.5;font-weight:600}
+.ks{font-size:.75rem;color:var(--muted);margin-top:5px}
+.cc{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.cc-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.cc h3{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+table{width:100%;border-collapse:collapse}
+th{font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--bdr);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid #ffffff08;font-size:.82rem;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#ffffff06}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.b-pos{background:#22c55e22;color:#22c55e;border:1px solid #22c55e44}
+.b-neg{background:#ef444422;color:#ef4444;border:1px solid #ef444444}
+.b-leve{background:#22c55e22;color:#22c55e}
+.b-media{background:#f59e0b22;color:#f59e0b}
+.b-grave{background:#ef444422;color:#ef4444}
+.b-na{background:var(--surf2);color:var(--muted)}
+.b-adv{background:#ef444422;color:#ef4444}
+.b-trein{background:#f59e0b22;color:#f59e0b}
+.b-rec{background:#22c55e22;color:#22c55e}
+.b-nenhuma{background:var(--surf2);color:var(--muted)}
+.b-tipo{background:#3b82f622;color:#3b82f6}
+.b-outra{background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44}
+.empty{text-align:center;padding:48px;color:var(--muted);font-size:.88rem}
+.loading{text-align:center;padding:48px;color:var(--muted)}
+@media(max-width:900px){
+  header,#filters,main{padding-left:16px;padding-right:16px}
+  #kpis{grid-template-columns:1fr 1fr}
+  table{font-size:.75rem}
+  td,th{padding:7px 6px}
+}
+@media(max-width:520px){
+  #kpis{grid-template-columns:1fr}
+}
+
+/* Painel de detalhes */
+.overlay{
+  position:fixed;inset:0;background:#0009;z-index:200;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.overlay.open{opacity:1;pointer-events:all}
+.detail-panel{
+  position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);
+  background:var(--surf);border-left:1px solid var(--bdr);
+  z-index:201;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  overflow:hidden;
+}
+.detail-panel.open{transform:translateX(0)}
+.dp-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;border-bottom:1px solid var(--bdr);
+  background:var(--bg);flex-shrink:0;
+}
+.dp-header h2{font-size:.95rem;font-weight:700}
+.dp-close{
+  background:none;border:none;color:var(--muted);
+  font-size:1.4rem;cursor:pointer;padding:4px;line-height:1;
+  transition:color .15s;
+}
+.dp-close:hover{color:var(--txt)}
+.dp-body{padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.dp-row{display:flex;flex-direction:column;gap:3px}
+.dp-lbl{font-size:.63rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.dp-val{font-size:.88rem;color:var(--txt)}
+.dp-desc{font-size:.85rem;color:var(--muted);line-height:1.6;margin:0}
+.dp-divider{height:1px;background:var(--bdr)}
+.dp-sig-img{max-width:100%;border-radius:6px;background:#fff;padding:6px 12px;display:block}
+.dp-no-sig{font-size:.8rem;color:var(--muted);font-style:italic}
+
+/* ===== Tab bar view ===== */
+.tab-bar-view{display:flex;background:#0a1628;border-bottom:1px solid var(--bdr)}
+.tbv{flex:1;padding:12px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
+.tbv.active{color:#fff;border-bottom-color:var(--acc);background:rgba(59,130,246,.08)}
+.tbv:hover:not(.active){color:var(--txt)}
+
+/* ===== NC import & list ===== */
+.nc-import-box{margin:20px 32px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.nc-import-box h3{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.nc-import-box p{font-size:.82rem;color:var(--muted)}
+#nc-paste{background:var(--surf2);color:var(--txt);border:1px solid var(--bdr);border-radius:8px;padding:12px;font-family:monospace;font-size:.78rem;min-height:90px;resize:vertical;width:100%}
+#nc-paste:focus{outline:2px solid var(--acc);border-color:transparent}
+.nc-import-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-nc{padding:8px 18px;border:none;border-radius:6px;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-nc-parse{background:var(--surf2);color:var(--txt);border:1px solid var(--bdr)}
+.btn-nc-parse:hover{border-color:var(--acc);color:var(--acc)}
+.btn-nc-confirm{background:var(--acc);color:#fff}
+.btn-nc-confirm:hover{opacity:.85}
+.btn-nc-confirm:disabled{opacity:.5;cursor:not-allowed}
+.nc-preview{margin-top:4px;overflow-x:auto}
+.nc-section-list{margin:0 32px 24px}
+@media(max-width:900px){.nc-import-box,.nc-section-list{margin-left:16px;margin-right:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Feedbacks de Campo</h1>
+    <p>Maxx Conectado · Supervisão Geral</p>
+  </div>
+  <span class="badge-hdr" id="hdr-count">Carregando...</span>
+</header>
+
+<div class="tab-bar-view">
+  <button class="tbv active" id="tbv-feedbacks" onclick="switchViewTab('feedbacks')">📋 Feedbacks</button>
+  <button class="tbv" id="tbv-ncs" onclick="switchViewTab('ncs')">⚠️ Não Conformidades</button>
+</div>
+
+<div id="filters">
+  <div class="fg">
+    <label>Equipe Técnica</label>
+    <select id="f-sup">
+      <option value="">Todas</option>
+      <option>ARTHUR GOMES CRUZ</option>
+      <option>IGO SAMUEL LIRA DOS SANTOS OLIVEIRA</option>
+      <option>MILTON ANTONIO DA MOTA COSTA</option>
+      <option>WEVERTON GERALDO DOS SANTOS DUTRA</option>
+    </select>
+  </div>
+  <div class="fg">
+    <label>Técnico</label>
+    <select id="f-tec"><option value="">Todos</option></select>
+  </div>
+  <div class="fg">
+    <label>Natureza</label>
+    <select id="f-nat">
+      <option value="">Todas</option>
+      <option>Positivo</option>
+      <option>Negativo</option>
+    </select>
+  </div>
+  <div class="fg">
+    <label>Tipo</label>
+    <select id="f-tipo">
+      <option value="">Todos</option>
+      <option>Técnico</option>
+      <option>Comportamental</option>
+      <option>Segurança</option>
+      <option>Procedimento</option>
+    </select>
+  </div>
+  <div class="fg">
+    <label>Ação</label>
+    <select id="f-acao">
+      <option value="">Todas</option>
+      <option>Advertência</option>
+      <option>Treinamento</option>
+      <option>Reconhecimento</option>
+      <option>Nenhuma</option>
+    </select>
+  </div>
+  <div class="fg">
+    <label>De</label>
+    <input type="date" id="f-de">
+  </div>
+  <div class="fg">
+    <label>Até</label>
+    <input type="date" id="f-ate">
+  </div>
+  <button id="btn-reset">Limpar filtros</button>
+  <span id="finfo"></span>
+</div>
+
+<main id="main-content">
+  <div id="kpis">
+    <div class="kc blue">
+      <div class="kl">Total de Feedbacks</div>
+      <div class="kv" id="k-total">—</div>
+    </div>
+    <div class="kc green">
+      <div class="kl">Positivos</div>
+      <div class="kv" id="k-pos">—</div>
+      <div class="ks" id="k-pos-pct"></div>
+    </div>
+    <div class="kc red">
+      <div class="kl">Técnico c/ Mais Ocorrências</div>
+      <div class="kv sm" id="k-tec">—</div>
+      <div class="ks" id="k-tec-n"></div>
+    </div>
+    <div class="kc purple">
+      <div class="kl">Ação Mais Requerida</div>
+      <div class="kv sm" id="k-acao">—</div>
+      <div class="ks" id="k-acao-n"></div>
+    </div>
+  </div>
+
+  <div class="cc">
+    <div class="cc-hdr">
+      <h3>Registros</h3>
+    </div>
+    <div id="tbl-wrap"><div class="loading">Carregando dados...</div></div>
+  </div>
+</main>
+
+<section id="section-ncs" style="display:none">
+  <div class="nc-import-box">
+    <h3>Importar da planilha</h3>
+    <p>Copie as linhas do Google Sheets (incluindo a linha de cabeçalho) e cole abaixo:</p>
+    <textarea id="nc-paste" placeholder="Cole os dados aqui..."></textarea>
+    <div class="nc-import-actions">
+      <button class="btn-nc btn-nc-parse" onclick="parseNcPaste()">Analisar</button>
+      <button class="btn-nc btn-nc-confirm" id="btn-nc-import" style="display:none" onclick="confirmNcImport()">Importar</button>
+    </div>
+    <div id="nc-parse-preview" class="nc-preview"></div>
+  </div>
+  <div class="cc nc-section-list">
+    <div class="cc-hdr">
+      <h3>Não Conformidades registradas</h3>
+      <span id="nc-view-counter" style="font-size:.75rem;color:var(--muted)"></span>
+    </div>
+    <div id="nc-view-lista"><div class="loading">Carregando...</div></div>
+  </div>
+</section>
+
+<script>
+const SB_URL = 'https://xcdlnrjojcqpdafgxjvw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjZGxucmpvamNxcGRhZmd4anZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTU5MTMsImV4cCI6MjA5NzM3MTkxM30.H-5mjr2bTLa-AfAMGgcdUE0KkkPeJmJqUgwUBqvWU8E';
+const db = supabase.createClient(SB_URL, SB_KEY);
+
+const EQUIPES = {
+  "ARTHUR GOMES CRUZ": [
+    "DEIVID HENRIQUE DA CUNHA ESTEVÃO","DIEGO SABINO DOS SANTOS","JUNIO CESAR DE AZEVEDO",
+    "MARCIO JUNIOR MARTINS CEREZO","RODRIGO COUTINHO CRUZ","VICTOR HUGO ALVES PIMENTA GOMES",
+    "DIEGO DAMASCENO MAGALHÃES"
+  ],
+  "IGO SAMUEL LIRA DOS SANTOS OLIVEIRA": [
+    "JOSE EDSON NICACIO DA SILVA","KENNER DE SOUZA","RODRIGO FERNANDES DO CARMO",
+    "SAMUEL DE PAULA SIMOES","WENDEL PEREIRA LIMA"
+  ],
+  "MILTON ANTONIO DA MOTA COSTA": [
+    "ADRIAN JUNIOR DA CUNHA ESTEVAO","ARTHUR EMANUEL ALMEIDA RAMOS",
+    "LEONARDO MAGNO PEREIRA DA SILVA MIRANDA","VENICIO RODRIGUES DOS SANTOS",
+    "CARLOS EDUARDO GONÇALVES DE CARVALHO","WESLLEY LOPES TRIGUEIRO"
+  ],
+  "WEVERTON GERALDO DOS SANTOS DUTRA": [
+    "ALLAN MICHAEL ELIAS ALVES","CRISTIAN BERG DA SILVA SANTOS","EDGARD LOPES FERREIRA DA SILVA",
+    "GABRIEL SOUZA DE MAGALHÃES","KAIO GABRIEL PIRES DA SILVA","SIDNEY CRISTIAN DA SILVA LIMA",
+    "FELIPE PEREIRA GONÇALVES"
+  ]
+};
+
+function fmtSup(supervisor, tecnico) {
+  if (!supervisor) return '—';
+  const nome = supervisor.split(' ').slice(0, 2).join(' ');
+  const equipe = EQUIPES[supervisor] || [];
+  const outra = equipe.length > 0 && !equipe.includes(tecnico);
+  return outra
+    ? `${nome} <span class="badge b-outra">↔ outra equipe</span>`
+    : nome;
+}
+
+const TECNICOS = [
+  "ADRIAN JUNIOR DA CUNHA ESTEVAO","ALLAN MICHAEL ELIAS ALVES","ARTHUR EMANUEL ALMEIDA RAMOS",
+  "CARLOS EDUARDO GONÇALVES DE CARVALHO","CRISTIAN BERG DA SILVA SANTOS",
+  "DEIVID HENRIQUE DA CUNHA ESTEVÃO","DIEGO DAMASCENO MAGALHÃES","DIEGO SABINO DOS SANTOS",
+  "EDGARD LOPES FERREIRA DA SILVA","FELIPE PEREIRA GONÇALVES","GABRIEL SOUZA DE MAGALHÃES",
+  "JOSE EDSON NICACIO DA SILVA","JUNIO CESAR DE AZEVEDO","KAIO GABRIEL PIRES DA SILVA",
+  "KENNER DE SOUZA","LEONARDO MAGNO PEREIRA DA SILVA MIRANDA","MARCIO JUNIOR MARTINS CEREZO",
+  "RODRIGO COUTINHO CRUZ","RODRIGO FERNANDES DO CARMO","SAMUEL DE PAULA SIMOES",
+  "SIDNEY CRISTIAN DA SILVA LIMA","VENICIO RODRIGUES DOS SANTOS","VICTOR HUGO ALVES PIMENTA GOMES",
+  "WENDEL PEREIRA LIMA","WESLLEY LOPES TRIGUEIRO"
+];
+
+const fTec = document.getElementById('f-tec');
+TECNICOS.forEach(t => {
+  const o = document.createElement('option');
+  o.value = o.textContent = t;
+  fTec.appendChild(o);
+});
+
+let DATA = [];
+let DISPLAYED = [];
+
+async function load() {
+  const { data, error } = await db.from('feedbacks').select('*').order('created_at', { ascending: false });
+  if (error) {
+    document.getElementById('tbl-wrap').innerHTML = '<div class="empty">Erro ao carregar dados.</div>';
+    return;
+  }
+  DATA = data || [];
+  document.getElementById('hdr-count').textContent = `${DATA.length} registros`;
+  render();
+}
+
+function getFiltered() {
+  const sv   = document.getElementById('f-sup').value;
+  const tc   = document.getElementById('f-tec').value;
+  const nat  = document.getElementById('f-nat').value;
+  const tip  = document.getElementById('f-tipo').value;
+  const acao = document.getElementById('f-acao').value;
+  const de   = document.getElementById('f-de').value;
+  const ate  = document.getElementById('f-ate').value;
+  return DATA.filter(r =>
+    (!sv   || r.supervisor === sv)       &&
+    (!tc   || r.tecnico === tc)          &&
+    (!nat  || r.natureza === nat)        &&
+    (!tip  || r.tipo === tip)            &&
+    (!acao || r.acao_requerida === acao) &&
+    (!de   || r.data >= de)              &&
+    (!ate  || r.data <= ate)
+  );
+}
+
+function render() {
+  const rows = getFiltered();
+  document.getElementById('finfo').textContent = `${rows.length} resultado${rows.length !== 1 ? 's' : ''}`;
+  renderKPIs(rows);
+  renderTable(rows);
+}
+
+function renderKPIs(rows) {
+  const total = rows.length;
+  document.getElementById('k-total').textContent = total || '0';
+
+  const pos = rows.filter(r => r.natureza === 'Positivo').length;
+  document.getElementById('k-pos').textContent = pos;
+  document.getElementById('k-pos-pct').textContent = total
+    ? `${Math.round(pos / total * 100)}% do total` : '—';
+
+  const negRows = rows.filter(r => r.natureza === 'Negativo');
+  const tecCount = {};
+  negRows.forEach(r => { tecCount[r.tecnico] = (tecCount[r.tecnico] || 0) + 1; });
+  const topTec = Object.entries(tecCount).sort((a, b) => b[1] - a[1])[0];
+  if (topTec) {
+    document.getElementById('k-tec').textContent = topTec[0].split(' ').slice(0, 2).join(' ');
+    document.getElementById('k-tec-n').textContent = `${topTec[1]} ocorrência${topTec[1] > 1 ? 's' : ''} negativa${topTec[1] > 1 ? 's' : ''}`;
+  } else {
+    document.getElementById('k-tec').textContent = '—';
+    document.getElementById('k-tec-n').textContent = '';
+  }
+
+  const acaoCount = {};
+  rows.filter(r => r.acao_requerida && r.acao_requerida !== 'Nenhuma')
+      .forEach(r => { acaoCount[r.acao_requerida] = (acaoCount[r.acao_requerida] || 0) + 1; });
+  const topAcao = Object.entries(acaoCount).sort((a, b) => b[1] - a[1])[0];
+  if (topAcao) {
+    document.getElementById('k-acao').textContent = topAcao[0];
+    document.getElementById('k-acao-n').textContent = `${topAcao[1]} vez${topAcao[1] > 1 ? 'es' : ''}`;
+  } else {
+    document.getElementById('k-acao').textContent = '—';
+    document.getElementById('k-acao-n').textContent = '';
+  }
+}
+
+const bNat  = v => v === 'Positivo'
+  ? '<span class="badge b-pos">✓ Positivo</span>'
+  : '<span class="badge b-neg">⚠ Negativo</span>';
+
+const bGrav = v => {
+  if (!v || v === 'N/A') return '<span class="badge b-na">N/A</span>';
+  const c = v === 'Leve' ? 'b-leve' : v === 'Média' ? 'b-media' : 'b-grave';
+  return `<span class="badge ${c}">${v}</span>`;
+};
+
+const bAcao = v => {
+  if (!v || v === 'Nenhuma') return '<span class="badge b-nenhuma">Nenhuma</span>';
+  const c = v === 'Advertência' ? 'b-adv' : v === 'Treinamento' ? 'b-trein' : 'b-rec';
+  return `<span class="badge ${c}">${v}</span>`;
+};
+
+function renderTable(rows) {
+  DISPLAYED = rows;
+  const wrap = document.getElementById('tbl-wrap');
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="empty">Nenhum feedback encontrado para os filtros selecionados.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Avaliador</th>
+        <th>Técnico</th>
+        <th>Tipo</th>
+        <th>Natureza</th>
+        <th>Gravidade</th>
+        <th>Ação</th>
+        <th>Descrição</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((r, idx) => `<tr onclick="openPanel(${idx})" style="cursor:pointer">
+        <td style="white-space:nowrap">${r.data ? r.data.split('-').reverse().join('/') : '—'}</td>
+        <td style="white-space:nowrap">${fmtSup(r.supervisor, r.tecnico)}</td>
+        <td>${r.tecnico || '—'}</td>
+        <td><span class="badge b-tipo">${r.tipo || '—'}</span></td>
+        <td>${bNat(r.natureza)}</td>
+        <td>${bGrav(r.gravidade)}</td>
+        <td>${bAcao(r.acao_requerida)}</td>
+        <td style="max-width:260px;color:var(--muted);word-break:break-word">${r.descricao || '—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+  </div>`;
+}
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  ['f-sup','f-tec','f-nat','f-tipo','f-acao','f-de','f-ate'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  render();
+});
+
+['f-sup','f-tec','f-nat','f-tipo','f-acao','f-de','f-ate'].forEach(id => {
+  document.getElementById(id).addEventListener('change', render);
+});
+
+load();
+
+function openPanel(idx) {
+  const r = DISPLAYED[idx];
+  if (!r) return;
+  const data = r.data ? r.data.split('-').reverse().join('/') : '—';
+  const gravRow = (r.natureza !== 'Positivo')
+    ? `<div class="dp-row"><span class="dp-lbl">Gravidade</span><span class="dp-val">${bGrav(r.gravidade)}</span></div>` : '';
+  const descRow = r.descricao
+    ? `<div class="dp-divider"></div>
+       <div class="dp-row"><span class="dp-lbl">Descrição</span><p class="dp-desc">${r.descricao}</p></div>` : '';
+  const sigRow = r.Assinatura
+    ? `<img src="${r.Assinatura}" class="dp-sig-img" alt="Assinatura">`
+    : '<span class="dp-no-sig">Sem assinatura registrada</span>';
+
+  document.getElementById('dp-body').innerHTML = `
+    <div class="dp-row"><span class="dp-lbl">Técnico</span><span class="dp-val">${r.tecnico || '—'}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Data</span><span class="dp-val">${data}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Avaliador</span><span class="dp-val">${r.supervisor || '—'}</span></div>
+    <div class="dp-divider"></div>
+    <div class="dp-row"><span class="dp-lbl">Tipo</span><span class="dp-val">${r.tipo || '—'}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Natureza</span><span class="dp-val">${bNat(r.natureza)}</span></div>
+    ${gravRow}
+    <div class="dp-row"><span class="dp-lbl">Ação Requerida</span><span class="dp-val">${bAcao(r.acao_requerida)}</span></div>
+    ${descRow}
+    <div class="dp-divider"></div>
+    <div class="dp-row"><span class="dp-lbl">Assinatura do Técnico</span>${sigRow}</div>`;
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+/* ===== NÃO CONFORMIDADES ===== */
+
+function switchViewTab(tab) {
+  document.getElementById('filters').style.display      = tab === 'feedbacks' ? 'flex' : 'none';
+  document.getElementById('main-content').style.display = tab === 'feedbacks' ? ''     : 'none';
+  document.getElementById('section-ncs').style.display  = tab === 'ncs'       ? ''     : 'none';
+  document.getElementById('tbv-feedbacks').classList.toggle('active', tab === 'feedbacks');
+  document.getElementById('tbv-ncs').classList.toggle('active', tab === 'ncs');
+  if (tab === 'ncs') loadNcView();
+}
+
+const NC_COL_MAP = {
+  'dt_os_execucao':'dt_os_execucao','data_os':'dt_os_execucao','data os':'dt_os_execucao','data_da_os':'dt_os_execucao',
+  'auditor_nome':'auditor_nome','auditor':'auditor_nome',
+  'tecnico_nome':'tecnico_nome','tecnico':'tecnico_nome','nome_tecnico':'tecnico_nome',
+  'tecnico_matricula':'tecnico_matricula','matricula':'tecnico_matricula','matricula_tecnico':'tecnico_matricula',
+  'os_id':'os_id','id_os':'os_id','numero_os':'os_id','os':'os_id',
+  'cliente_id':'cliente_id','id_cliente':'cliente_id',
+  'cliente_nome':'cliente_nome','cliente':'cliente_nome','nome_cliente':'cliente_nome',
+  'nc_gravidade':'nc_gravidade','gravidade':'nc_gravidade',
+  'nc_tipo':'nc_tipo','tipo':'nc_tipo','tipo_nc':'nc_tipo',
+  'nc_fato':'nc_fato','fato':'nc_fato','fato_concreto':'nc_fato','fato_concreato':'nc_fato',
+  'descrição':'nc_fato','descricao':'nc_fato','descricão':'nc_fato'
+};
+
+/* Parser TSV correto — trata células com quebras de linha internas (aspas duplas) */
+function parseTSV(text) {
+  const rows = [];
+  let row = [], cell = '', inQ = false;
+  const n = text.length;
+  for (let i = 0; i < n; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQ && text[i + 1] === '"') { cell += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === '\t' && !inQ) {
+      row.push(cell); cell = '';
+    } else if (!inQ && (c === '\n' || (c === '\r' && text[i + 1] === '\n'))) {
+      if (c === '\r') i++;
+      row.push(cell); cell = '';
+      if (row.some(v => v.trim())) rows.push(row);
+      row = [];
+    } else {
+      cell += c;
+    }
+  }
+  if (cell || row.length) { row.push(cell); if (row.some(v => v.trim())) rows.push(row); }
+  return rows;
+}
+
+let _parsedNcRows = [];
+
+function parseNcPaste() {
+  const raw = document.getElementById('nc-paste').value.trim();
+  const preview = document.getElementById('nc-parse-preview');
+  if (!raw) { preview.innerHTML = ''; return; }
+
+  const lines = parseTSV(raw);
+  if (lines.length < 2) {
+    preview.innerHTML = '<p style="color:var(--grave);font-size:.8rem">Dados inválidos. Inclua a linha de cabeçalho.</p>';
+    return;
+  }
+
+  const headers = lines[0].map(h => h.trim().toLowerCase().replace(/\s+/g,'_'));
+  const colMap  = headers.map(h => NC_COL_MAP[h] || null);
+
+  _parsedNcRows = lines.slice(1)
+    .filter(row => row.some(c => c.trim()))
+    .map(row => {
+      const obj = {};
+      colMap.forEach((dbCol, i) => { if (dbCol) obj[dbCol] = (row[i] || '').trim(); });
+      return obj;
+    });
+
+  const btn = document.getElementById('btn-nc-import');
+  btn.textContent = `Importar ${_parsedNcRows.length} linha${_parsedNcRows.length !== 1 ? 's' : ''}`;
+  btn.style.display = _parsedNcRows.length ? '' : 'none';
+
+  const prev5 = _parsedNcRows.slice(0, 5);
+  preview.innerHTML = `
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:6px">${_parsedNcRows.length} linha(s) encontrada(s) — preview das primeiras 5:</p>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Data OS</th><th>Técnico</th><th>OS ID</th><th>Cliente</th><th>Gravidade</th><th>Tipo</th><th>Fato concreto</th></tr></thead>
+      <tbody>${prev5.map(r => `<tr>
+        <td style="white-space:nowrap">${r.dt_os_execucao||'—'}</td>
+        <td>${r.tecnico_nome||'—'}</td>
+        <td style="font-family:monospace;font-size:.72rem;color:var(--muted)">${r.os_id||'—'}</td>
+        <td>${r.cliente_nome||'—'}</td>
+        <td>${bGrav(r.nc_gravidade)}</td>
+        <td style="color:var(--muted)">${r.nc_tipo||'—'}</td>
+        <td style="max-width:200px;word-break:break-word;color:var(--muted)">${r.nc_fato||'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+async function confirmNcImport() {
+  if (!_parsedNcRows.length) return;
+  const btn = document.getElementById('btn-nc-import');
+  btn.disabled = true; btn.textContent = 'Importando...';
+
+  const { error } = await db.from('nao_conformidades').insert(_parsedNcRows);
+
+  if (error) {
+    alert('Erro ao importar: ' + (error.message || JSON.stringify(error)));
+    btn.disabled = false;
+    btn.textContent = `Importar ${_parsedNcRows.length} linha(s)`;
+    return;
+  }
+
+  document.getElementById('nc-paste').value = '';
+  document.getElementById('nc-parse-preview').innerHTML = '';
+  btn.style.display = 'none';
+  _parsedNcRows = [];
+  loadNcView();
+}
+
+async function loadNcView() {
+  const lista   = document.getElementById('nc-view-lista');
+  const counter = document.getElementById('nc-view-counter');
+  lista.innerHTML = '<div class="loading">⏳ Carregando...</div>';
+
+  const { data, error } = await db
+    .from('nao_conformidades')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) { lista.innerHTML = '<div class="empty">Erro ao carregar NCs.</div>'; return; }
+
+  counter.textContent = `${data.length} registro(s)`;
+
+  if (!data.length) {
+    lista.innerHTML = '<div class="empty">Nenhuma não conformidade registrada ainda.</div>';
+    return;
+  }
+
+  lista.innerHTML = `<div style="overflow-x:auto"><table>
+    <thead><tr>
+      <th>Data OS</th><th>Técnico</th><th>Matrícula</th><th>OS ID</th><th>Cliente</th><th>Gravidade</th><th>Tipo</th><th>Fato concreto</th>
+    </tr></thead>
+    <tbody>${data.map(r => `<tr>
+      <td style="white-space:nowrap">${r.dt_os_execucao||'—'}</td>
+      <td>${r.tecnico_nome||'—'}</td>
+      <td style="color:var(--muted)">${r.tecnico_matricula||'—'}</td>
+      <td style="font-family:monospace;font-size:.75rem;color:var(--muted)">${r.os_id||'—'}</td>
+      <td>${r.cliente_nome||'—'}</td>
+      <td>${bGrav(r.nc_gravidade)}</td>
+      <td style="color:var(--muted)">${r.nc_tipo||'—'}</td>
+      <td style="max-width:260px;word-break:break-word;color:var(--muted)">${r.nc_fato||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+</script>
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<aside class="detail-panel" id="detail-panel">
+  <div class="dp-header">
+    <h2>Detalhe do Feedback</h2>
+    <button class="dp-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="dp-body" id="dp-body"></div>
+</aside>
+</body>
+</html>
