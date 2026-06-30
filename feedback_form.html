@@ -315,6 +315,43 @@ textarea{resize:vertical;min-height:100px}
 }
 .sig-clear:hover{border-color:var(--neg);color:var(--neg)}
 
+/* === Modal NC detalhe === */
+.nc-overlay{
+  position:fixed;inset:0;background:#0009;z-index:200;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.nc-overlay.open{opacity:1;pointer-events:all}
+.nc-sheet{
+  position:fixed;left:0;right:0;bottom:0;
+  background:var(--surf2);border-radius:16px 16px 0 0;
+  border-top:1px solid var(--bdr);
+  z-index:201;max-height:80vh;display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.nc-sheet.open{transform:translateY(0)}
+.nc-sheet-handle{
+  width:36px;height:4px;border-radius:2px;
+  background:var(--bdr);margin:10px auto 0;flex-shrink:0;
+}
+.nc-sheet-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px 10px;flex-shrink:0;
+  border-bottom:1px solid var(--bdr);
+}
+.nc-sheet-header h3{font-size:.9rem;font-weight:700;color:var(--txt)}
+.nc-sheet-close{
+  background:none;border:none;color:var(--muted);
+  font-size:1.5rem;cursor:pointer;line-height:1;padding:4px;
+}
+.nc-sheet-body{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.nc-detail-row{display:flex;flex-direction:column;gap:3px}
+.nc-detail-lbl{font-size:.63rem;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:.7px}
+.nc-detail-val{font-size:.85rem;color:var(--txt);line-height:1.5}
+.nc-detail-val.muted{color:var(--muted)}
+.nc-detail-divider{height:1px;background:var(--bdr)}
+.hist-card.clickable{cursor:pointer;transition:border-color .15s}
+.hist-card.clickable:active{border-color:var(--gold-light)}
+
 /* === Não Conformidades === */
 .nc-toolbar{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -454,6 +491,17 @@ textarea{resize:vertical;min-height:100px}
     </select>
   </div>
   <div id="nc-lista"></div>
+</div>
+
+<!-- Modal detalhe NC -->
+<div class="nc-overlay" id="nc-overlay" onclick="closeNcSheet()"></div>
+<div class="nc-sheet" id="nc-sheet">
+  <div class="nc-sheet-handle"></div>
+  <div class="nc-sheet-header">
+    <h3 id="nc-sheet-title">Não Conformidade</h3>
+    <button class="nc-sheet-close" onclick="closeNcSheet()">×</button>
+  </div>
+  <div class="nc-sheet-body" id="nc-sheet-body"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -874,7 +922,7 @@ function renderNcCards(data) {
     return;
   }
 
-  lista.innerHTML = data.map(nc => {
+  lista.innerHTML = data.map((nc, i) => {
     const gravCls = nc.nc_gravidade === 'LEVE' || nc.nc_gravidade === 'Leve' ? 'hb-leve'
                   : nc.nc_gravidade === 'MÉDIA' || nc.nc_gravidade === 'Média' ? 'hb-media'
                   : nc.nc_gravidade === 'GRAVE' || nc.nc_gravidade === 'Grave' ? 'hb-grave' : '';
@@ -882,7 +930,7 @@ function renderNcCards(data) {
       ? `<span class="hbadge ${gravCls}">${nc.nc_gravidade}</span>` : '';
 
     return `
-    <div class="hist-card">
+    <div class="hist-card clickable" onclick="_ncOpenIdx(${i})">
       <div class="hist-card-header">
         <div class="hist-card-tecnico">${nc.tecnico_nome || '—'}</div>
         <div class="hist-card-data">${nc.dt_os_execucao || '—'}</div>
@@ -893,10 +941,14 @@ function renderNcCards(data) {
       </div>
       ${nc.cliente_nome ? `<div class="hist-desc" style="margin-top:2px">👤 ${nc.cliente_nome}</div>` : ''}
       ${nc.nc_tipo ? `<div class="hist-desc" style="color:var(--gold-light);font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px">${nc.nc_tipo}</div>` : ''}
-      ${nc.nc_fato ? `<div class="hist-desc" style="color:var(--muted)">${nc.nc_fato}</div>` : ''}
+      <div class="hist-desc" style="color:var(--green-mid);font-size:.7rem;margin-top:2px">Toque para ver detalhes →</div>
     </div>`;
   }).join('');
+
+  window._ncCurrentData = data;
 }
+
+function _ncOpenIdx(i) { openNcSheet(window._ncCurrentData[i]); }
 
 function filterNaoConformidades() {
   const tec = document.getElementById('nc-filter-tec').value;
@@ -914,6 +966,55 @@ function setNcSupervisor() {
 function trocarSupervisorNc() {
   localStorage.removeItem('fb_supervisor');
   loadNaoConformidades();
+}
+
+/* === Detalhe NC === */
+function openNcSheet(nc) {
+  const gravCls = nc.nc_gravidade === 'LEVE' || nc.nc_gravidade === 'Leve' ? 'hb-leve'
+                : nc.nc_gravidade === 'MÉDIA' || nc.nc_gravidade === 'Média' ? 'hb-media'
+                : nc.nc_gravidade === 'GRAVE' || nc.nc_gravidade === 'Grave' ? 'hb-grave' : '';
+
+  document.getElementById('nc-sheet-title').textContent = nc.tecnico_nome || 'Não Conformidade';
+  document.getElementById('nc-sheet-body').innerHTML = `
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">Técnico</span>
+      <span class="nc-detail-val">${nc.tecnico_nome || '—'}</span>
+    </div>
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">Data OS</span>
+      <span class="nc-detail-val">${nc.dt_os_execucao || '—'}</span>
+    </div>
+    <div class="nc-detail-divider"></div>
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">Gravidade</span>
+      <span class="nc-detail-val"><span class="hbadge ${gravCls}">${nc.nc_gravidade || '—'}</span></span>
+    </div>
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">OS ID</span>
+      <span class="nc-detail-val muted">${nc.os_id || '—'}</span>
+    </div>
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">Cliente</span>
+      <span class="nc-detail-val">${nc.cliente_nome || '—'}</span>
+    </div>
+    <div class="nc-detail-divider"></div>
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">Tipo</span>
+      <span class="nc-detail-val">${nc.nc_tipo || '—'}</span>
+    </div>
+    ${nc.nc_fato ? `
+    <div class="nc-detail-row">
+      <span class="nc-detail-lbl">Fato Concreto</span>
+      <span class="nc-detail-val muted">${nc.nc_fato}</span>
+    </div>` : ''}
+  `;
+  document.getElementById('nc-overlay').classList.add('open');
+  document.getElementById('nc-sheet').classList.add('open');
+}
+
+function closeNcSheet() {
+  document.getElementById('nc-overlay').classList.remove('open');
+  document.getElementById('nc-sheet').classList.remove('open');
 }
 </script>
 </body>
