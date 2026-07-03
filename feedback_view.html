@@ -60,6 +60,7 @@ tr:hover td{background:#ffffff06}
 .b-nenhuma{background:var(--surf2);color:var(--muted)}
 .b-tipo{background:#3b82f622;color:#3b82f6}
 .b-outra{background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed44}
+.td-desc{max-width:260px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .empty{text-align:center;padding:48px;color:var(--muted);font-size:.88rem}
 .loading{text-align:center;padding:48px;color:var(--muted)}
 @media(max-width:900px){
@@ -428,7 +429,7 @@ function renderTable(rows) {
         <td>${bNat(r.natureza)}</td>
         <td>${bGrav(r.gravidade)}</td>
         <td>${bAcao(r.acao_requerida)}</td>
-        <td style="max-width:260px;color:var(--muted);word-break:break-word">${r.descricao || '—'}</td>
+        <td class="td-desc" title="${(r.descricao || '').replace(/"/g,'&quot;')}">${r.descricao || '—'}</td>
       </tr>`).join('')}
     </tbody>
   </table>
