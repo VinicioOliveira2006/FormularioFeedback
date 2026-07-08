@@ -647,6 +647,20 @@ document.getElementById('btn-enviar').addEventListener('click', async () => {
     toast('Registre a assinatura do técnico.', 'err'); return;
   }
 
+  /* Validação de valores permitidos (rejeita valor adulterado) + tamanho */
+  const OK_TIPO = ['Técnico','Comportamental','Segurança','Procedimento'];
+  const OK_NAT  = ['Positivo','Negativo'];
+  const OK_GRAV = ['Leve','Média','Grave','N/A'];
+  const OK_ACAO = ['Advertência','Treinamento','Reconhecimento','Nenhuma'];
+  const gravFinal = SEL.natureza === 'Positivo' ? 'N/A' : SEL.gravidade;
+  if (!OK_TIPO.includes(SEL.tipo) || !OK_NAT.includes(SEL.natureza) ||
+      !OK_ACAO.includes(SEL.acao) || !OK_GRAV.includes(gravFinal)) {
+    toast('Valores inválidos no formulário. Recarregue a página.', 'err'); return;
+  }
+  if (descricao.length > 2000) {
+    toast('Descrição muito longa (máx. 2000 caracteres).', 'err'); return;
+  }
+
   const btn = document.getElementById('btn-enviar');
   btn.disabled = true; btn.textContent = 'Enviando...';
 
