@@ -461,7 +461,7 @@ textarea{resize:vertical;min-height:100px}
 
   <div class="fg">
     <label class="lbl">Descrição</label>
-    <textarea id="descricao" placeholder="Descreva o ocorrido..."></textarea>
+    <textarea id="descricao" maxlength="2000" placeholder="Descreva o ocorrido..."></textarea>
   </div>
 
   <div class="fg">
@@ -527,6 +527,18 @@ if ('serviceWorker' in navigator) {
 const SB_URL = 'https://xcdlnrjojcqpdafgxjvw.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjZGxucmpvamNxcGRhZmd4anZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTU5MTMsImV4cCI6MjA5NzM3MTkxM30.H-5mjr2bTLa-AfAMGgcdUE0KkkPeJmJqUgwUBqvWU8E';
 const db = supabase.createClient(SB_URL, SB_KEY);
+
+/* Escapa dados do banco antes de injetar em HTML (previne XSS armazenado) */
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+/* Só aceita data URI de imagem como src de assinatura */
+function safeSig(s){
+  s = String(s || '');
+  return /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=\s]+$/.test(s) ? s : '';
+}
 
 const EQUIPES = {
   "ARTHUR GOMES CRUZ": [
@@ -715,7 +727,51 @@ function clearSig() {
   document.getElementById('sig-ph').style.display = '';
 }
 
-initSig();
+/* ===== Gate de login (Supabase Auth) ===== */
+const AUTH_EMAIL = 'acesso@maxxnettelecom.com';
+function startApp(){ initSig(); }
+
+(function authGate(){
+  const ov = document.createElement('div');
+  ov.id = 'auth-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#090c15;display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.innerHTML = `
+    <div style="width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;text-align:center">
+      <img src="logonew.png" alt="" style="width:72px;height:72px;border-radius:16px;align-self:center">
+      <h1 style="color:#eaf0f9;font-size:1.1rem;font-weight:700;margin:0">Feedbacks · Maxx Net</h1>
+      <p style="color:#8590a5;font-size:.8rem;margin:-6px 0 0">Acesso restrito — entre para continuar</p>
+      <input id="auth-pass" type="password" placeholder="Senha de acesso" autocomplete="current-password"
+        style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
+      <button id="auth-btn" style="background:linear-gradient(135deg,#41BB91,#82689D);color:#fff;border:none;border-radius:12px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer">Entrar</button>
+      <div id="auth-err" style="color:#e878c4;font-size:.8rem;min-height:1em"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const pass = ov.querySelector('#auth-pass');
+  const btn  = ov.querySelector('#auth-btn');
+  const err  = ov.querySelector('#auth-err');
+
+  function addLogout(){
+    if (document.getElementById('btn-logout')) return;
+    const b = document.createElement('button');
+    b.id = 'btn-logout'; b.textContent = 'Sair';
+    b.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9998;background:rgba(29,35,51,.92);color:#8590a5;border:1px solid #2a3242;border-radius:8px;padding:6px 12px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit';
+    b.onclick = async () => { await db.auth.signOut(); location.reload(); };
+    document.body.appendChild(b);
+  }
+  function done(){ ov.remove(); addLogout(); startApp(); }
+  async function tryLogin(){
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Entrando...';
+    const { error } = await db.auth.signInWithPassword({ email: AUTH_EMAIL, password: pass.value });
+    if (error){ err.textContent = 'Senha incorreta.'; btn.disabled = false; btn.textContent = 'Entrar'; pass.select(); return; }
+    done();
+  }
+  btn.addEventListener('click', tryLogin);
+  pass.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+  db.auth.getSession().then(({ data:{ session } }) => {
+    if (session) done(); else pass.focus();
+  });
+})();
 
 /* ========== HISTÓRICO ========== */
 
@@ -797,31 +853,32 @@ function renderCard(f, i) {
   const acaoCls = f.acao_requerida === 'Nenhuma' ? 'hb-nenhuma' : 'hb-acao';
 
   const gravBadge = (f.gravidade && f.gravidade !== 'N/A')
-    ? `<span class="hbadge ${gravCls}">${f.gravidade}</span>` : '';
+    ? `<span class="hbadge ${gravCls}">${esc(f.gravidade)}</span>` : '';
 
   const descBlock = f.descricao ? `
     <div>
-      <div class="hist-desc collapsed" id="hdesc-${i}">${f.descricao}</div>
+      <div class="hist-desc collapsed" id="hdesc-${i}">${esc(f.descricao)}</div>
       <span class="hist-desc-toggle" id="htoggle-${i}" onclick="toggleDescricao(${i})">Ver mais</span>
     </div>` : '';
 
-  const sigBlock = f.Assinatura
+  const sig = safeSig(f.Assinatura);
+  const sigBlock = sig
     ? `<div>
         <div style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Assinatura</div>
-        <img src="${f.Assinatura}" style="max-height:48px;border-radius:4px;background:rgba(255,255,255,.85);padding:2px 6px">
+        <img src="${sig}" style="max-height:48px;border-radius:4px;background:rgba(255,255,255,.85);padding:2px 6px">
       </div>` : '';
 
   return `
     <div class="hist-card">
       <div class="hist-card-header">
-        <div class="hist-card-tecnico">${f.tecnico}</div>
-        <div class="hist-card-data">${data}</div>
+        <div class="hist-card-tecnico">${esc(f.tecnico)}</div>
+        <div class="hist-card-data">${esc(data)}</div>
       </div>
       <div class="hist-badges">
-        <span class="hbadge hb-tipo">${f.tipo}</span>
-        <span class="hbadge ${natCls}">${f.natureza}</span>
+        <span class="hbadge hb-tipo">${esc(f.tipo)}</span>
+        <span class="hbadge ${natCls}">${esc(f.natureza)}</span>
         ${gravBadge}
-        <span class="hbadge ${acaoCls}">${f.acao_requerida}</span>
+        <span class="hbadge ${acaoCls}">${esc(f.acao_requerida)}</span>
       </div>
       ${descBlock}
       ${sigBlock}
@@ -941,21 +998,21 @@ function renderNcCards(data) {
                   : nc.nc_gravidade === 'MÉDIA' || nc.nc_gravidade === 'Média' ? 'hb-media'
                   : nc.nc_gravidade === 'GRAVE' || nc.nc_gravidade === 'Grave' ? 'hb-grave' : '';
     const gravBadge = nc.nc_gravidade
-      ? `<span class="hbadge ${gravCls}">${nc.nc_gravidade}</span>` : '';
+      ? `<span class="hbadge ${gravCls}">${esc(nc.nc_gravidade)}</span>` : '';
 
     return `
     <div class="hist-card clickable" onclick="_ncOpenIdx(${i})">
       <div class="hist-card-header">
-        <div class="hist-card-tecnico">${nc.tecnico_nome || '—'}</div>
-        <div class="hist-card-data">${nc.dt_os_execucao || '—'}</div>
+        <div class="hist-card-tecnico">${esc(nc.tecnico_nome || '—')}</div>
+        <div class="hist-card-data">${esc(nc.dt_os_execucao || '—')}</div>
       </div>
       <div class="hist-badges">
         ${gravBadge}
-        ${nc.os_id ? `<span class="hbadge" style="background:rgba(155,123,201,.14);color:#b79ae0;border:1px solid rgba(155,123,201,.32)">OS ${nc.os_id}</span>` : ''}
+        ${nc.os_id ? `<span class="hbadge" style="background:rgba(155,123,201,.14);color:#b79ae0;border:1px solid rgba(155,123,201,.32)">OS ${esc(nc.os_id)}</span>` : ''}
         ${nc.realizada_em ? `<span class="hbadge hb-realizada">✓ Realizada</span>` : ''}
       </div>
-      ${nc.cliente_nome ? `<div class="hist-desc" style="margin-top:2px">👤 ${nc.cliente_nome}</div>` : ''}
-      ${nc.nc_tipo ? `<div class="hist-desc" style="color:var(--gold-light);font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px">${nc.nc_tipo}</div>` : ''}
+      ${nc.cliente_nome ? `<div class="hist-desc" style="margin-top:2px">👤 ${esc(nc.cliente_nome)}</div>` : ''}
+      ${nc.nc_tipo ? `<div class="hist-desc" style="color:var(--gold-light);font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px">${esc(nc.nc_tipo)}</div>` : ''}
       <div class="hist-desc" style="color:var(--green-mid);font-size:.7rem;margin-top:2px">Toque para ver detalhes →</div>
     </div>`;
   }).join('');
@@ -1045,43 +1102,43 @@ function openNcSheet(nc) {
   document.getElementById('nc-sheet-body').innerHTML = `
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">Técnico</span>
-      <span class="nc-detail-val">${nc.tecnico_nome || '—'}</span>
+      <span class="nc-detail-val">${esc(nc.tecnico_nome || '—')}</span>
     </div>
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">Data OS</span>
-      <span class="nc-detail-val">${nc.dt_os_execucao || '—'}</span>
+      <span class="nc-detail-val">${esc(nc.dt_os_execucao || '—')}</span>
     </div>
     <div class="nc-detail-divider"></div>
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">Gravidade</span>
-      <span class="nc-detail-val"><span class="hbadge ${gravCls}">${nc.nc_gravidade || '—'}</span></span>
+      <span class="nc-detail-val"><span class="hbadge ${gravCls}">${esc(nc.nc_gravidade || '—')}</span></span>
     </div>
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">OS ID</span>
-      <span class="nc-detail-val muted">${nc.os_id || '—'}</span>
+      <span class="nc-detail-val muted">${esc(nc.os_id || '—')}</span>
     </div>
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">Cliente</span>
-      <span class="nc-detail-val">${nc.cliente_nome || '—'}</span>
+      <span class="nc-detail-val">${esc(nc.cliente_nome || '—')}</span>
     </div>
     <div class="nc-detail-divider"></div>
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">Tipo</span>
-      <span class="nc-detail-val">${nc.nc_tipo || '—'}</span>
+      <span class="nc-detail-val">${esc(nc.nc_tipo || '—')}</span>
     </div>
     ${nc.nc_fato ? `
     <div class="nc-detail-row">
       <span class="nc-detail-lbl">Fato Concreto</span>
-      <span class="nc-detail-val muted">${nc.nc_fato}</span>
+      <span class="nc-detail-val muted">${esc(nc.nc_fato)}</span>
     </div>` : ''}
     <div class="nc-detail-divider"></div>
     ${nc.realizada_em
       ? `<div class="nc-realizada-box">
            <span class="rz-title">✓ Feedback realizado</span>
-           <span class="rz-meta">em ${fmtDia(nc.realizada_em)}${nc.realizada_por ? ' · por ' + nc.realizada_por : ''}</span>
-           <button class="btn-nc-undo" onclick="desfazerRealizada('${nc.id}')">Desfazer</button>
+           <span class="rz-meta">em ${esc(fmtDia(nc.realizada_em))}${nc.realizada_por ? ' · por ' + esc(nc.realizada_por) : ''}</span>
+           <button class="btn-nc-undo" onclick="desfazerRealizada('${esc(nc.id)}')">Desfazer</button>
          </div>`
-      : `<button class="btn-nc-done" onclick="marcarRealizada('${nc.id}')">✓ Marcar feedback como realizado</button>`}
+      : `<button class="btn-nc-done" onclick="marcarRealizada('${esc(nc.id)}')">✓ Marcar feedback como realizado</button>`}
   `;
   document.getElementById('nc-overlay').classList.add('open');
   document.getElementById('nc-sheet').classList.add('open');

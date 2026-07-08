@@ -290,7 +290,7 @@ const EQUIPES = {
 
 function fmtSup(supervisor, tecnico) {
   if (!supervisor) return '—';
-  const nome = supervisor.split(' ').slice(0, 2).join(' ');
+  const nome = esc(supervisor.split(' ').slice(0, 2).join(' '));
   const equipe = EQUIPES[supervisor] || [];
   const outra = equipe.length > 0 && !equipe.includes(tecnico);
   return outra
@@ -391,6 +391,18 @@ function renderKPIs(rows) {
   }
 }
 
+/* Escapa dados do banco antes de injetar em HTML (previne XSS armazenado) */
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+/* Só aceita data URI de imagem como src de assinatura */
+function safeSig(s){
+  s = String(s || '');
+  return /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=\s]+$/.test(s) ? s : '';
+}
+
 const bNat  = v => v === 'Positivo'
   ? '<span class="badge b-pos">✓ Positivo</span>'
   : '<span class="badge b-neg">⚠ Negativo</span>';
@@ -398,13 +410,13 @@ const bNat  = v => v === 'Positivo'
 const bGrav = v => {
   if (!v || v === 'N/A') return '<span class="badge b-na">N/A</span>';
   const c = v === 'Leve' ? 'b-leve' : v === 'Média' ? 'b-media' : 'b-grave';
-  return `<span class="badge ${c}">${v}</span>`;
+  return `<span class="badge ${c}">${esc(v)}</span>`;
 };
 
 const bAcao = v => {
   if (!v || v === 'Nenhuma') return '<span class="badge b-nenhuma">Nenhuma</span>';
   const c = v === 'Advertência' ? 'b-adv' : v === 'Treinamento' ? 'b-trein' : 'b-rec';
-  return `<span class="badge ${c}">${v}</span>`;
+  return `<span class="badge ${c}">${esc(v)}</span>`;
 };
 
 function renderTable(rows) {
@@ -431,14 +443,14 @@ function renderTable(rows) {
     </thead>
     <tbody>
       ${rows.map((r, idx) => `<tr onclick="openPanel(${idx})" style="cursor:pointer">
-        <td style="white-space:nowrap">${r.data ? r.data.split('-').reverse().join('/') : '—'}</td>
+        <td style="white-space:nowrap">${r.data ? esc(r.data.split('-').reverse().join('/')) : '—'}</td>
         <td style="white-space:nowrap">${fmtSup(r.supervisor, r.tecnico)}</td>
-        <td>${r.tecnico || '—'}</td>
-        <td><span class="badge b-tipo">${r.tipo || '—'}</span></td>
+        <td>${esc(r.tecnico || '—')}</td>
+        <td><span class="badge b-tipo">${esc(r.tipo || '—')}</span></td>
         <td>${bNat(r.natureza)}</td>
         <td>${bGrav(r.gravidade)}</td>
         <td>${bAcao(r.acao_requerida)}</td>
-        <td class="td-desc" title="${(r.descricao || '').replace(/"/g,'&quot;')}">${r.descricao || '—'}</td>
+        <td class="td-desc" title="${esc(r.descricao || '')}">${esc(r.descricao || '—')}</td>
       </tr>`).join('')}
     </tbody>
   </table>
@@ -456,7 +468,51 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById(id).addEventListener('change', render);
 });
 
-load();
+/* ===== Gate de login (Supabase Auth) ===== */
+const AUTH_EMAIL = 'acesso@maxxnettelecom.com';
+function startApp(){ load(); }
+
+(function authGate(){
+  const ov = document.createElement('div');
+  ov.id = 'auth-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#090c15;display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.innerHTML = `
+    <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;text-align:center">
+      <img src="logonew.png" alt="" style="width:72px;height:72px;border-radius:16px;align-self:center">
+      <h1 style="color:#eaf0f9;font-size:1.15rem;font-weight:700;margin:0">Painel de Feedbacks · Maxx Net</h1>
+      <p style="color:#8590a5;font-size:.8rem;margin:-6px 0 0">Acesso restrito — entre para continuar</p>
+      <input id="auth-pass" type="password" placeholder="Senha de acesso" autocomplete="current-password"
+        style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
+      <button id="auth-btn" style="background:linear-gradient(135deg,#41BB91,#82689D);color:#fff;border:none;border-radius:12px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer">Entrar</button>
+      <div id="auth-err" style="color:#e878c4;font-size:.8rem;min-height:1em"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const pass = ov.querySelector('#auth-pass');
+  const btn  = ov.querySelector('#auth-btn');
+  const err  = ov.querySelector('#auth-err');
+
+  function addLogout(){
+    if (document.getElementById('btn-logout')) return;
+    const b = document.createElement('button');
+    b.id = 'btn-logout'; b.textContent = 'Sair';
+    b.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9998;background:rgba(29,35,51,.92);color:#8590a5;border:1px solid #2a3242;border-radius:8px;padding:6px 12px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit';
+    b.onclick = async () => { await db.auth.signOut(); location.reload(); };
+    document.body.appendChild(b);
+  }
+  function done(){ ov.remove(); addLogout(); startApp(); }
+  async function tryLogin(){
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Entrando...';
+    const { error } = await db.auth.signInWithPassword({ email: AUTH_EMAIL, password: pass.value });
+    if (error){ err.textContent = 'Senha incorreta.'; btn.disabled = false; btn.textContent = 'Entrar'; pass.select(); return; }
+    done();
+  }
+  btn.addEventListener('click', tryLogin);
+  pass.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+  db.auth.getSession().then(({ data:{ session } }) => {
+    if (session) done(); else pass.focus();
+  });
+})();
 
 function openPanel(idx) {
   const r = DISPLAYED[idx];
@@ -466,17 +522,18 @@ function openPanel(idx) {
     ? `<div class="dp-row"><span class="dp-lbl">Gravidade</span><span class="dp-val">${bGrav(r.gravidade)}</span></div>` : '';
   const descRow = r.descricao
     ? `<div class="dp-divider"></div>
-       <div class="dp-row"><span class="dp-lbl">Descrição</span><p class="dp-desc">${r.descricao}</p></div>` : '';
-  const sigRow = r.Assinatura
-    ? `<img src="${r.Assinatura}" class="dp-sig-img" alt="Assinatura">`
+       <div class="dp-row"><span class="dp-lbl">Descrição</span><p class="dp-desc">${esc(r.descricao)}</p></div>` : '';
+  const sig = safeSig(r.Assinatura);
+  const sigRow = sig
+    ? `<img src="${sig}" class="dp-sig-img" alt="Assinatura">`
     : '<span class="dp-no-sig">Sem assinatura registrada</span>';
 
   document.getElementById('dp-body').innerHTML = `
-    <div class="dp-row"><span class="dp-lbl">Técnico</span><span class="dp-val">${r.tecnico || '—'}</span></div>
-    <div class="dp-row"><span class="dp-lbl">Data</span><span class="dp-val">${data}</span></div>
-    <div class="dp-row"><span class="dp-lbl">Avaliador</span><span class="dp-val">${r.supervisor || '—'}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Técnico</span><span class="dp-val">${esc(r.tecnico || '—')}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Data</span><span class="dp-val">${esc(data)}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Avaliador</span><span class="dp-val">${esc(r.supervisor || '—')}</span></div>
     <div class="dp-divider"></div>
-    <div class="dp-row"><span class="dp-lbl">Tipo</span><span class="dp-val">${r.tipo || '—'}</span></div>
+    <div class="dp-row"><span class="dp-lbl">Tipo</span><span class="dp-val">${esc(r.tipo || '—')}</span></div>
     <div class="dp-row"><span class="dp-lbl">Natureza</span><span class="dp-val">${bNat(r.natureza)}</span></div>
     ${gravRow}
     <div class="dp-row"><span class="dp-lbl">Ação Requerida</span><span class="dp-val">${bAcao(r.acao_requerida)}</span></div>
@@ -563,9 +620,10 @@ function parseNcPaste() {
 
   _parsedNcRows = lines.slice(1)
     .filter(row => row.some(c => c.trim()))
+    .slice(0, 1000) /* teto de linhas por importação */
     .map(row => {
       const obj = {};
-      colMap.forEach((dbCol, i) => { if (dbCol) obj[dbCol] = (row[i] || '').trim(); });
+      colMap.forEach((dbCol, i) => { if (dbCol) obj[dbCol] = (row[i] || '').trim().slice(0, 2000); });
       return obj;
     });
 
@@ -579,13 +637,13 @@ function parseNcPaste() {
     <div style="overflow-x:auto"><table>
       <thead><tr><th>Data OS</th><th>Técnico</th><th>OS ID</th><th>Cliente</th><th>Gravidade</th><th>Tipo</th><th>Fato concreto</th></tr></thead>
       <tbody>${prev5.map(r => `<tr>
-        <td style="white-space:nowrap">${r.dt_os_execucao||'—'}</td>
-        <td>${r.tecnico_nome||'—'}</td>
-        <td style="font-family:monospace;font-size:.72rem;color:var(--muted)">${r.os_id||'—'}</td>
-        <td>${r.cliente_nome||'—'}</td>
+        <td style="white-space:nowrap">${esc(r.dt_os_execucao||'—')}</td>
+        <td>${esc(r.tecnico_nome||'—')}</td>
+        <td style="font-family:monospace;font-size:.72rem;color:var(--muted)">${esc(r.os_id||'—')}</td>
+        <td>${esc(r.cliente_nome||'—')}</td>
         <td>${bGrav(r.nc_gravidade)}</td>
-        <td style="color:var(--muted)">${r.nc_tipo||'—'}</td>
-        <td style="max-width:200px;word-break:break-word;color:var(--muted)">${r.nc_fato||'—'}</td>
+        <td style="color:var(--muted)">${esc(r.nc_tipo||'—')}</td>
+        <td style="max-width:200px;word-break:break-word;color:var(--muted)">${esc(r.nc_fato||'—')}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
 }
@@ -636,16 +694,16 @@ async function loadNcView() {
     </tr></thead>
     <tbody>${data.map(r => `<tr>
       <td style="white-space:nowrap">${r.realizada_em
-        ? `<span class="badge b-rec" title="por ${r.realizada_por||'—'}">✓ ${fmtDiaNc(r.realizada_em)}</span>`
+        ? `<span class="badge b-rec" title="por ${esc(r.realizada_por||'—')}">✓ ${esc(fmtDiaNc(r.realizada_em))}</span>`
         : `<span class="badge b-na">Pendente</span>`}</td>
-      <td style="white-space:nowrap">${r.dt_os_execucao||'—'}</td>
-      <td>${r.tecnico_nome||'—'}</td>
-      <td style="color:var(--muted)">${r.tecnico_matricula||'—'}</td>
-      <td style="font-family:monospace;font-size:.75rem;color:var(--muted)">${r.os_id||'—'}</td>
-      <td>${r.cliente_nome||'—'}</td>
+      <td style="white-space:nowrap">${esc(r.dt_os_execucao||'—')}</td>
+      <td>${esc(r.tecnico_nome||'—')}</td>
+      <td style="color:var(--muted)">${esc(r.tecnico_matricula||'—')}</td>
+      <td style="font-family:monospace;font-size:.75rem;color:var(--muted)">${esc(r.os_id||'—')}</td>
+      <td>${esc(r.cliente_nome||'—')}</td>
       <td>${bGrav(r.nc_gravidade)}</td>
-      <td style="color:var(--muted)">${r.nc_tipo||'—'}</td>
-      <td style="max-width:260px;word-break:break-word;color:var(--muted)">${r.nc_fato||'—'}</td>
+      <td style="color:var(--muted)">${esc(r.nc_tipo||'—')}</td>
+      <td style="max-width:260px;word-break:break-word;color:var(--muted)">${esc(r.nc_fato||'—')}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
