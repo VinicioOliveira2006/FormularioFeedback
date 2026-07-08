@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Feedbacks · Maxx Net</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.min.js" integrity="sha384-fx4y4cDx8NYfissnVzdGJY3yVXWY3rn5ab5HTUjpvgT35oDiyAbjjqnLhnRmESNE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 :root{
   --bg:#090c15;--surf:#141926;--surf2:#1d2333;--bdr:#2a3242;
@@ -486,6 +486,10 @@ function startApp(){ load(); }
         style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
       <button id="auth-btn" style="background:linear-gradient(135deg,#41BB91,#82689D);color:#fff;border:none;border-radius:12px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer">Entrar</button>
       <div id="auth-err" style="color:#e878c4;font-size:.8rem;min-height:1em"></div>
+      <details style="text-align:left;color:#8590a5;font-size:.72rem;margin-top:2px">
+        <summary style="cursor:pointer;text-align:center;list-style:none">Aviso de privacidade</summary>
+        <p style="margin-top:8px;line-height:1.55">Sistema operado pela <b>Maxx Net Telecom</b> para registrar feedbacks e não conformidades de técnicos de campo, com finalidade de gestão e melhoria da qualidade do serviço. São tratados dados de identificação de colaboradores e clientes (nome, matrícula, OS) e a assinatura do técnico. Bases legais: execução de contrato e legítimo interesse (art. 7º, V e IX, da LGPD). Acesso restrito a supervisores autorizados. Para exercer seus direitos (acesso, correção, exclusão), contate <b>privacidade@maxxnettelecom.com</b>.</p>
+      </details>
     </div>`;
   document.body.appendChild(ov);
   const mail = ov.querySelector('#auth-email');
