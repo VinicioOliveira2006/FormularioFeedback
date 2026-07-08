@@ -1,7 +1,7 @@
 const CACHE = 'feedbacks-v3';
 const ASSETS = [
   './feedback_form.html',
-  './Logonew.png',
+  './logonew.png',
   './manifest.json'
 ];
 
