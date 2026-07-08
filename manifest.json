@@ -5,20 +5,20 @@
   "start_url": "./feedback_form.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050d18",
-  "theme_color": "#15803d",
+  "background_color": "#090c15",
+  "theme_color": "#090c15",
   "icons": [
     {
-      "src": "Gemini_Generated_Image_8fz56h8fz56h8fz5.png",
+      "src": "LogoFeedback.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "Gemini_Generated_Image_8fz56h8fz56h8fz5.png",
+      "src": "LogoFeedback.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

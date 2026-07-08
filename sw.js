@@ -1,7 +1,7 @@
-const CACHE = 'feedbacks-v1';
+const CACHE = 'feedbacks-v2';
 const ASSETS = [
   './feedback_form.html',
-  './Gemini_Generated_Image_8fz56h8fz56h8fz5.png',
+  './LogoFeedback.png',
   './manifest.json'
 ];
 
