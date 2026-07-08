@@ -469,7 +469,6 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 });
 
 /* ===== Gate de login (Supabase Auth) ===== */
-const AUTH_EMAIL = 'acesso@maxxnettelecom.com';
 function startApp(){ load(); }
 
 (function authGate(){
@@ -481,12 +480,15 @@ function startApp(){ load(); }
       <img src="logonew.png" alt="" style="width:72px;height:72px;border-radius:16px;align-self:center">
       <h1 style="color:#eaf0f9;font-size:1.15rem;font-weight:700;margin:0">Painel de Feedbacks · Maxx Net</h1>
       <p style="color:#8590a5;font-size:.8rem;margin:-6px 0 0">Acesso restrito — entre para continuar</p>
-      <input id="auth-pass" type="password" placeholder="Senha de acesso" autocomplete="current-password"
+      <input id="auth-email" type="email" placeholder="E-mail" autocomplete="username" autocapitalize="none" spellcheck="false"
+        style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
+      <input id="auth-pass" type="password" placeholder="Senha" autocomplete="current-password"
         style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
       <button id="auth-btn" style="background:linear-gradient(135deg,#41BB91,#82689D);color:#fff;border:none;border-radius:12px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer">Entrar</button>
       <div id="auth-err" style="color:#e878c4;font-size:.8rem;min-height:1em"></div>
     </div>`;
   document.body.appendChild(ov);
+  const mail = ov.querySelector('#auth-email');
   const pass = ov.querySelector('#auth-pass');
   const btn  = ov.querySelector('#auth-btn');
   const err  = ov.querySelector('#auth-err');
@@ -501,16 +503,19 @@ function startApp(){ load(); }
   }
   function done(){ ov.remove(); addLogout(); startApp(); }
   async function tryLogin(){
+    const email = (mail.value || '').trim().toLowerCase();
+    if (!email || !pass.value){ err.textContent = 'Preencha e-mail e senha.'; return; }
     err.textContent = ''; btn.disabled = true; btn.textContent = 'Entrando...';
-    const { error } = await db.auth.signInWithPassword({ email: AUTH_EMAIL, password: pass.value });
-    if (error){ err.textContent = 'Senha incorreta.'; btn.disabled = false; btn.textContent = 'Entrar'; pass.select(); return; }
+    const { error } = await db.auth.signInWithPassword({ email, password: pass.value });
+    if (error){ err.textContent = 'E-mail ou senha incorretos.'; btn.disabled = false; btn.textContent = 'Entrar'; pass.select(); return; }
     done();
   }
   btn.addEventListener('click', tryLogin);
+  mail.addEventListener('keydown', e => { if (e.key === 'Enter') pass.focus(); });
   pass.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
   db.auth.getSession().then(({ data:{ session } }) => {
-    if (session) done(); else pass.focus();
+    if (session) done(); else mail.focus();
   });
 })();
 
