@@ -28,6 +28,9 @@ header{padding:20px 32px 14px;border-bottom:1px solid var(--bdr);display:flex;al
 header h1{font-size:1.25rem;font-weight:700;letter-spacing:-.3px;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--green,#41BB91)}
 header p{color:var(--muted);font-size:.8rem;margin-top:2px}
 .badge-hdr{background:var(--surf2);border:1px solid var(--bdr);border-radius:20px;padding:4px 12px;font-size:.75rem;color:var(--muted)}
+.hdr-right{display:flex;align-items:center;gap:14px}
+.brand-logo{height:32px;width:auto;flex-shrink:0;opacity:.95}
+@media(max-width:480px){.brand-logo{height:26px}}
 #filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 32px;background:var(--surf);border-bottom:1px solid var(--bdr)}
 .fg{display:flex;flex-direction:column;gap:3px}
 .fg label{font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
@@ -145,9 +148,12 @@ tr:hover td{background:#ffffff06}
 <header>
   <div>
     <h1>Feedbacks de Campo</h1>
-    <p>Maxx Conectado · Supervisão Geral</p>
+    <p>Supervisão Geral</p>
   </div>
-  <span class="badge-hdr" id="hdr-count">Carregando...</span>
+  <div class="hdr-right">
+    <span class="badge-hdr" id="hdr-count">Carregando...</span>
+    <img src="logo-maxx.svg" alt="maxx" class="brand-logo">
+  </div>
 </header>
 
 <div class="tab-bar-view">
@@ -477,8 +483,8 @@ function startApp(){ load(); }
   ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#090c15;display:flex;align-items:center;justify-content:center;padding:24px';
   ov.innerHTML = `
     <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;text-align:center">
-      <img src="logonew.png" alt="" style="width:72px;height:72px;border-radius:16px;align-self:center">
-      <h1 style="color:#eaf0f9;font-size:1.15rem;font-weight:700;margin:0">Painel de Feedbacks · Maxx Net</h1>
+      <img src="logo-maxx.svg" alt="maxx" style="width:170px;height:auto;align-self:center;margin-bottom:4px">
+      <h1 style="color:#eaf0f9;font-size:.98rem;font-weight:600;margin:0">Painel de Feedbacks · Supervisão Geral</h1>
       <p style="color:#8590a5;font-size:.8rem;margin:-6px 0 0">Acesso restrito — entre para continuar</p>
       <input id="auth-email" type="email" placeholder="E-mail" autocomplete="username" autocapitalize="none" spellcheck="false"
         style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
