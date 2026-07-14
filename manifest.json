@@ -5,8 +5,8 @@
   "start_url": "./feedback_form.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#090c15",
-  "theme_color": "#090c15",
+  "background_color": "#2c2c2c",
+  "theme_color": "#2c2c2c",
   "icons": [
     {
       "src": "logonew.png",

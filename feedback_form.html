@@ -6,18 +6,18 @@
 <title>Registro de Feedback · Maxx Net</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#090c15">
+<meta name="theme-color" content="#2c2c2c">
 <link rel="apple-touch-icon" href="logonew.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.min.js" integrity="sha384-fx4y4cDx8NYfissnVzdGJY3yVXWY3rn5ab5HTUjpvgT35oDiyAbjjqnLhnRmESNE" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 :root{
-  /* Base – dark SaaS */
-  --bg:#090c15;
-  --surf:#141926;
-  --surf2:#1d2333;
-  --bdr:#2a3242;
-  --txt:#eaf0f9;
-  --muted:#8590a5;
+  /* Base – dark SaaS (cinza médio, alinhado ao painel) */
+  --bg:#2c2c2c;
+  --surf:#232323;
+  --surf2:#2e2e2e;
+  --bdr:#3b3b3b;
+  --txt:#f3f3f3;
+  --muted:#9c9c9c;
 
   /* Paleta de marca */
   --green:#41BB91;
@@ -42,6 +42,8 @@
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
+/* Escala global de fonte — melhora leitura/toque no celular sem alterar paddings/containers em px */
+html{font-size:112.5%}
 
 body{
   font-family:'Inter',sans-serif;
@@ -54,16 +56,11 @@ body{
   min-height:100vh;
 }
 
-/* Faixa de identidade – gradiente da marca */
-body::before{
-  content:'';display:block;height:4px;
-  background:linear-gradient(90deg,#41BB91 0%,#82689D 42%,#B73895 72%,#FFCC04 100%);
-}
 
 /* Header */
 header{
   padding:18px 24px;
-  background:linear-gradient(180deg,rgba(29,35,51,.55),rgba(20,25,38,.55));
+  background:linear-gradient(180deg,rgba(46,46,46,.55),rgba(35,35,35,.55));
   backdrop-filter:blur(8px);
   border-bottom:1px solid var(--bdr);
   display:flex;align-items:center;justify-content:space-between;
@@ -75,14 +72,16 @@ header h1{
   background:var(--grad);-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:var(--green);
 }
-header p{color:var(--muted);font-size:.78rem;margin-top:3px}
+header p{color:var(--muted);font-size:.78rem}
+.brand-block{display:flex;align-items:center;gap:12px}
+.brand-sep{width:1px;height:20px;background:var(--bdr2);flex-shrink:0}
 .brand-logo{height:30px;width:auto;flex-shrink:0;opacity:.95}
-@media(max-width:480px){.brand-logo{height:26px}}
+@media(max-width:480px){.brand-logo{height:26px}.brand-block{gap:9px}}
 
 /* === Tab Bar === */
 .tab-bar{
   display:flex;
-  background:rgba(20,25,38,.7);
+  background:rgba(35,35,35,.7);
   backdrop-filter:blur(8px);
   border-bottom:1px solid var(--bdr);
   position:sticky;top:0;z-index:50;
@@ -104,7 +103,7 @@ header p{color:var(--muted);font-size:.78rem;margin-top:3px}
 /* Contêiner do formulário */
 .wrap{
   padding:20px;max-width:480px;margin:0 auto;
-  display:flex;flex-direction:column;gap:16px;
+  display:flex;flex-direction:column;gap:22px;
 }
 
 .fg{display:flex;flex-direction:column;gap:6px}
@@ -118,7 +117,7 @@ label.lbl{
 
 /* Inputs */
 select,textarea,input[type=date],input[type=text]{
-  background:var(--surf2);color:var(--txt);
+  background:var(--surf);color:var(--txt);
   border:1px solid var(--bdr);
   border-radius:10px;padding:12px;
   font-size:.9rem;font-family:inherit;width:100%;
@@ -374,11 +373,11 @@ textarea{resize:vertical;min-height:100px}
 </head>
 <body>
 <header>
-  <div>
-    <h1>Registro de Feedback</h1>
+  <div class="brand-block">
+    <img src="logo-maxx.svg" alt="maxx" class="brand-logo">
+    <span class="brand-sep"></span>
     <p>Supervisão de Campo</p>
   </div>
-  <img src="logo-maxx.svg" alt="maxx" class="brand-logo">
 </header>
 
 <div class="tab-bar">
@@ -751,19 +750,19 @@ function startApp(){ initSig(); }
 (function authGate(){
   const ov = document.createElement('div');
   ov.id = 'auth-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#090c15;display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#2c2c2c;display:flex;align-items:center;justify-content:center;padding:24px';
   ov.innerHTML = `
     <div style="width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;text-align:center">
       <img src="logo-maxx.svg" alt="maxx" style="width:158px;height:auto;align-self:center;margin-bottom:4px">
-      <h1 style="color:#eaf0f9;font-size:.95rem;font-weight:600;margin:0">Feedbacks · Supervisão de Campo</h1>
-      <p style="color:#8590a5;font-size:.8rem;margin:-6px 0 0">Acesso restrito — entre para continuar</p>
+      <h1 style="color:#f3f3f3;font-size:.95rem;font-weight:600;margin:0">Feedbacks · Supervisão de Campo</h1>
+      <p style="color:#9c9c9c;font-size:.8rem;margin:-6px 0 0">Acesso restrito — entre para continuar</p>
       <input id="auth-email" type="email" placeholder="E-mail" autocomplete="username" autocapitalize="none" spellcheck="false"
-        style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
+        style="background:#232323;color:#f3f3f3;border:1px solid #3b3b3b;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
       <input id="auth-pass" type="password" placeholder="Senha" autocomplete="current-password"
-        style="background:#1d2333;color:#eaf0f9;border:1px solid #2a3242;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
+        style="background:#232323;color:#f3f3f3;border:1px solid #3b3b3b;border-radius:10px;padding:12px;font-size:.95rem;width:100%">
       <button id="auth-btn" style="background:linear-gradient(135deg,#41BB91,#82689D);color:#fff;border:none;border-radius:12px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer">Entrar</button>
       <div id="auth-err" style="color:#e878c4;font-size:.8rem;min-height:1em"></div>
-      <details style="text-align:left;color:#8590a5;font-size:.72rem;margin-top:2px">
+      <details style="text-align:left;color:#9c9c9c;font-size:.72rem;margin-top:2px">
         <summary style="cursor:pointer;text-align:center;list-style:none">Aviso de privacidade</summary>
         <p style="margin-top:8px;line-height:1.55">Sistema operado pela <b>Maxx Net Telecom</b> para registrar feedbacks e não conformidades de técnicos de campo, com finalidade de gestão e melhoria da qualidade do serviço. São tratados dados de identificação de colaboradores e clientes (nome, matrícula, OS) e a assinatura do técnico. Bases legais: execução de contrato e legítimo interesse (art. 7º, V e IX, da LGPD). Acesso restrito a supervisores autorizados. Para exercer seus direitos (acesso, correção, exclusão), contate <b>vinicio.magalhaes@maxxnettelecom.com</b>.</p>
       </details>
@@ -778,7 +777,7 @@ function startApp(){ initSig(); }
     if (document.getElementById('btn-logout')) return;
     const b = document.createElement('button');
     b.id = 'btn-logout'; b.textContent = 'Sair';
-    b.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9998;background:rgba(29,35,51,.92);color:#8590a5;border:1px solid #2a3242;border-radius:8px;padding:6px 12px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit';
+    b.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9998;background:rgba(35,35,35,.92);color:#9c9c9c;border:1px solid #3b3b3b;border-radius:8px;padding:6px 12px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit';
     b.onclick = async () => { await db.auth.signOut(); location.reload(); };
     document.body.appendChild(b);
   }
