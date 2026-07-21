@@ -412,8 +412,14 @@ TECNICOS.forEach(t => {
 let DATA = [];
 let DISPLAYED = [];
 
+/* Colunas da listagem — SEM a Assinatura (PNG pesado). A assinatura é
+   buscada sob demanda ao abrir o painel de detalhe (openPanel). */
+const LIST_COLS = 'id,created_at,data,supervisor,tecnico,tipo,natureza,gravidade,acao_requerida,descricao';
+const PAGE_SIZE = 50;
+let shownCount = PAGE_SIZE;
+
 async function load() {
-  const { data, error } = await db.from('feedbacks').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('feedbacks').select(LIST_COLS).order('created_at', { ascending: false });
   if (error) {
     document.getElementById('tbl-wrap').innerHTML = '<div class="empty">Erro ao carregar dados.</div>';
     return;
@@ -442,10 +448,16 @@ function getFiltered() {
 }
 
 function render() {
+  shownCount = PAGE_SIZE;           /* nova filtragem volta à 1ª página */
   const rows = getFiltered();
   document.getElementById('finfo').textContent = `${rows.length} resultado${rows.length !== 1 ? 's' : ''}`;
-  renderKPIs(rows);
+  renderKPIs(rows);                 /* KPIs sempre sobre o total filtrado */
   renderTable(rows);
+}
+
+function showMore() {
+  shownCount += PAGE_SIZE;
+  renderTable(getFiltered());
 }
 
 function renderKPIs(rows) {
@@ -521,7 +533,7 @@ function renderTable(rows) {
       </tr>
     </thead>
     <tbody>
-      ${rows.map((r, idx) => `<tr onclick="openPanel(${idx})" style="cursor:pointer">
+      ${rows.slice(0, shownCount).map((r, idx) => `<tr onclick="openPanel(${idx})" style="cursor:pointer">
         <td style="white-space:nowrap">${r.data ? esc(r.data.split('-').reverse().join('/')) : '—'}</td>
         <td style="white-space:nowrap">${fmtSup(r.supervisor, r.tecnico)}</td>
         <td>${esc(r.tecnico || '—')}</td>
@@ -533,7 +545,12 @@ function renderTable(rows) {
       </tr>`).join('')}
     </tbody>
   </table>
-  </div>`;
+  </div>
+  ${rows.length > shownCount
+    ? `<div style="padding:14px;text-align:center;border-top:1px solid var(--bdr)">
+         <button id="btn-more" onclick="showMore()" style="padding:9px 18px;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);border-radius:var(--r-sm);cursor:pointer;font-size:.82rem;font-weight:600;font-family:inherit">Carregar mais ${Math.min(PAGE_SIZE, rows.length - shownCount)} (de ${rows.length})</button>
+       </div>`
+    : ''}`;
 }
 
 document.getElementById('btn-reset').addEventListener('click', () => {
@@ -602,7 +619,7 @@ function startApp(){ load(); }
   });
 })();
 
-function openPanel(idx) {
+async function openPanel(idx) {
   const r = DISPLAYED[idx];
   if (!r) return;
   const data = r.data ? r.data.split('-').reverse().join('/') : '—';
@@ -611,10 +628,6 @@ function openPanel(idx) {
   const descRow = r.descricao
     ? `<div class="dp-divider"></div>
        <div class="dp-row"><span class="dp-lbl">Descrição</span><p class="dp-desc">${esc(r.descricao)}</p></div>` : '';
-  const sig = safeSig(r.Assinatura);
-  const sigRow = sig
-    ? `<img src="${sig}" class="dp-sig-img" alt="Assinatura">`
-    : '<span class="dp-no-sig">Sem assinatura registrada</span>';
 
   document.getElementById('dp-body').innerHTML = `
     <div class="dp-row"><span class="dp-lbl">Técnico</span><span class="dp-val">${esc(r.tecnico || '—')}</span></div>
@@ -627,10 +640,23 @@ function openPanel(idx) {
     <div class="dp-row"><span class="dp-lbl">Ação Requerida</span><span class="dp-val">${bAcao(r.acao_requerida)}</span></div>
     ${descRow}
     <div class="dp-divider"></div>
-    <div class="dp-row"><span class="dp-lbl">Assinatura do Técnico</span>${sigRow}</div>`;
+    <div class="dp-row"><span class="dp-lbl">Assinatura do Técnico</span>
+      <span id="dp-sig-slot" class="dp-no-sig">Carregando assinatura…</span>
+    </div>`;
 
   document.getElementById('overlay').classList.add('open');
   document.getElementById('detail-panel').classList.add('open');
+
+  /* Assinatura buscada sob demanda (não vem na listagem) */
+  const openedId = r.id;
+  const { data: sigRow, error } = await db.from('feedbacks').select('Assinatura').eq('id', r.id).single();
+  const slot = document.getElementById('dp-sig-slot');
+  /* Se o usuário já trocou de registro/fechou, não sobrescreve */
+  if (!slot || DISPLAYED[idx] !== r || (DISPLAYED[idx] && DISPLAYED[idx].id !== openedId)) return;
+  const sig = !error && sigRow ? safeSig(sigRow.Assinatura) : '';
+  slot.outerHTML = sig
+    ? `<img src="${sig}" class="dp-sig-img" alt="Assinatura">`
+    : '<span class="dp-no-sig">Sem assinatura registrada</span>';
 }
 
 function closePanel() {
@@ -651,9 +677,11 @@ function switchViewTab(tab) {
   if (tab === 'ncs') loadNcView();
 }
 
+let _ncViewData = [];
+let _ncViewShown = PAGE_SIZE;
+
 async function loadNcView() {
   const lista   = document.getElementById('nc-view-lista');
-  const counter = document.getElementById('nc-view-counter');
   lista.innerHTML = '<div class="loading">⏳ Carregando...</div>';
 
   const { data, error } = await db
@@ -662,6 +690,21 @@ async function loadNcView() {
     .order('created_at', { ascending: false });
 
   if (error) { lista.innerHTML = '<div class="empty">Erro ao carregar NCs.</div>'; return; }
+
+  _ncViewData = data || [];
+  _ncViewShown = PAGE_SIZE;
+  renderNcView();
+}
+
+function showMoreNc() {
+  _ncViewShown += PAGE_SIZE;
+  renderNcView();
+}
+
+function renderNcView() {
+  const lista   = document.getElementById('nc-view-lista');
+  const counter = document.getElementById('nc-view-counter');
+  const data    = _ncViewData;
 
   counter.textContent = `${data.length} registro(s)`;
 
@@ -674,7 +717,7 @@ async function loadNcView() {
     <thead><tr>
       <th>Status</th><th>Data OS</th><th>Técnico</th><th>Matrícula</th><th>OS ID</th><th>Cliente</th><th>Gravidade</th><th>Tipo</th><th>Fato concreto</th>
     </tr></thead>
-    <tbody>${data.map(r => `<tr>
+    <tbody>${data.slice(0, _ncViewShown).map(r => `<tr>
       <td style="white-space:nowrap">${r.realizada_em
         ? `<span class="badge b-rec" title="por ${esc(r.realizada_por||'—')}">✓ ${esc(fmtDiaNc(r.realizada_em))}</span>`
         : `<span class="badge b-na">Pendente</span>`}</td>
@@ -687,7 +730,12 @@ async function loadNcView() {
       <td style="color:var(--muted)">${esc(r.nc_tipo||'—')}</td>
       <td style="max-width:260px;word-break:break-word;color:var(--muted)">${esc(r.nc_fato||'—')}</td>
     </tr>`).join('')}</tbody>
-  </table></div>`;
+  </table></div>
+  ${data.length > _ncViewShown
+    ? `<div style="padding:14px;text-align:center;border-top:1px solid var(--bdr)">
+         <button onclick="showMoreNc()" style="padding:9px 18px;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);border-radius:var(--r-sm);cursor:pointer;font-size:.82rem;font-weight:600;font-family:inherit">Carregar mais ${Math.min(PAGE_SIZE, data.length - _ncViewShown)} (de ${data.length})</button>
+       </div>`
+    : ''}`;
 }
 
 function fmtDiaNc(iso) {
