@@ -248,26 +248,10 @@ tbody tr:hover td{background:rgba(65,187,145,.05)}
 .dp-no-sig{font-size:.82rem;color:var(--muted);font-style:italic}
 
 /* ============================================================
-   IMPORTAÇÃO NC + LISTA
+   LISTA DE NÃO CONFORMIDADES
    ============================================================ */
-.nc-import-box{margin:26px 32px 0;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r-lg);padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--sh-sm)}
-.nc-import-box h3{display:flex;align-items:center;gap:9px;font-size:.82rem;font-weight:650;color:var(--txt);letter-spacing:-.1px}
-.nc-import-box h3 svg{width:16px;height:16px;color:var(--muted)}
-.nc-import-box p{font-size:.83rem;color:var(--muted);line-height:1.5}
-#nc-paste{background:var(--bg-2);color:var(--txt);border:1px dashed var(--bdr2);border-radius:var(--r);padding:14px;font-family:ui-monospace,'SF Mono',monospace;font-size:.78rem;min-height:100px;resize:vertical;width:100%;transition:border-color .15s,box-shadow .15s}
-#nc-paste:focus{outline:none;border-style:solid;border-color:var(--acc);box-shadow:var(--ring)}
-.nc-import-actions{display:flex;gap:10px;flex-wrap:wrap}
-.btn-nc{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border:none;border-radius:var(--r-sm);font-family:inherit;font-size:.84rem;font-weight:600;cursor:pointer;transition:all .15s var(--ease)}
-.btn-nc:active{transform:translateY(1px)}
-.btn-nc-parse{background:#d63cae;color:#fff;border:none;box-shadow:0 2px 12px -2px rgba(214,60,174,.5)}
-.btn-nc-parse:hover{filter:brightness(1.08)}
-.btn-nc-confirm{background:var(--acc);color:#04150e;box-shadow:0 2px 12px -2px rgba(65,187,145,.5)}
-.btn-nc-confirm:hover{filter:brightness(1.08)}
-.btn-nc-confirm:disabled{opacity:.5;cursor:not-allowed;filter:none}
-.nc-preview{margin-top:2px;overflow-x:auto}
-.nc-preview table{background:var(--bg-2);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden}
 .nc-section-list{margin:22px 32px 32px}
-@media(max-width:900px){.nc-import-box,.nc-section-list{margin-left:16px;margin-right:16px}}
+@media(max-width:900px){.nc-section-list{margin-left:16px;margin-right:16px}}
 </style>
 </head>
 <body>
@@ -395,16 +379,6 @@ tbody tr:hover td{background:rgba(65,187,145,.05)}
 </main>
 
 <section id="section-ncs" style="display:none">
-  <div class="nc-import-box">
-    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Importar da planilha</h3>
-    <p>Copie as linhas do Google Sheets (incluindo a linha de cabeçalho) e cole abaixo:</p>
-    <textarea id="nc-paste" placeholder="Cole os dados aqui..."></textarea>
-    <div class="nc-import-actions">
-      <button class="btn-nc btn-nc-parse" onclick="parseNcPaste()">Analisar</button>
-      <button class="btn-nc btn-nc-confirm" id="btn-nc-import" style="display:none" onclick="confirmNcImport()">Importar</button>
-    </div>
-    <div id="nc-parse-preview" class="nc-preview"></div>
-  </div>
   <div class="cc nc-section-list">
     <div class="cc-hdr">
       <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>Não Conformidades registradas</h3>
@@ -722,112 +696,6 @@ function switchViewTab(tab) {
   document.getElementById('tbv-feedbacks').classList.toggle('active', tab === 'feedbacks');
   document.getElementById('tbv-ncs').classList.toggle('active', tab === 'ncs');
   if (tab === 'ncs') loadNcView();
-}
-
-const NC_COL_MAP = {
-  'dt_os_execucao':'dt_os_execucao','data_os':'dt_os_execucao','data os':'dt_os_execucao','data_da_os':'dt_os_execucao',
-  'auditor_nome':'auditor_nome','auditor':'auditor_nome',
-  'tecnico_nome':'tecnico_nome','tecnico':'tecnico_nome','nome_tecnico':'tecnico_nome',
-  'tecnico_matricula':'tecnico_matricula','matricula':'tecnico_matricula','matricula_tecnico':'tecnico_matricula',
-  'os_id':'os_id','id_os':'os_id','numero_os':'os_id','os':'os_id',
-  'cliente_id':'cliente_id','id_cliente':'cliente_id',
-  'cliente_nome':'cliente_nome','cliente':'cliente_nome','nome_cliente':'cliente_nome',
-  'nc_gravidade':'nc_gravidade','gravidade':'nc_gravidade',
-  'nc_tipo':'nc_tipo','tipo':'nc_tipo','tipo_nc':'nc_tipo',
-  'nc_fato':'nc_fato','fato':'nc_fato','fato_concreto':'nc_fato','nc_fato_concreto':'nc_fato','fato_concreato':'nc_fato',
-  'descrição':'nc_fato','descricao':'nc_fato','descricão':'nc_fato'
-};
-
-/* Parser TSV correto — trata células com quebras de linha internas (aspas duplas) */
-function parseTSV(text) {
-  const rows = [];
-  let row = [], cell = '', inQ = false;
-  const n = text.length;
-  for (let i = 0; i < n; i++) {
-    const c = text[i];
-    if (c === '"') {
-      if (inQ && text[i + 1] === '"') { cell += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === '\t' && !inQ) {
-      row.push(cell); cell = '';
-    } else if (!inQ && (c === '\n' || (c === '\r' && text[i + 1] === '\n'))) {
-      if (c === '\r') i++;
-      row.push(cell); cell = '';
-      if (row.some(v => v.trim())) rows.push(row);
-      row = [];
-    } else {
-      cell += c;
-    }
-  }
-  if (cell || row.length) { row.push(cell); if (row.some(v => v.trim())) rows.push(row); }
-  return rows;
-}
-
-let _parsedNcRows = [];
-
-function parseNcPaste() {
-  const raw = document.getElementById('nc-paste').value.trim();
-  const preview = document.getElementById('nc-parse-preview');
-  if (!raw) { preview.innerHTML = ''; return; }
-
-  const lines = parseTSV(raw);
-  if (lines.length < 2) {
-    preview.innerHTML = '<p style="color:var(--grave);font-size:.8rem">Dados inválidos. Inclua a linha de cabeçalho.</p>';
-    return;
-  }
-
-  const headers = lines[0].map(h => h.trim().toLowerCase().replace(/\s+/g,'_'));
-  const colMap  = headers.map(h => NC_COL_MAP[h] || null);
-
-  _parsedNcRows = lines.slice(1)
-    .filter(row => row.some(c => c.trim()))
-    .slice(0, 1000) /* teto de linhas por importação */
-    .map(row => {
-      const obj = {};
-      colMap.forEach((dbCol, i) => { if (dbCol) obj[dbCol] = (row[i] || '').trim().slice(0, 2000); });
-      return obj;
-    });
-
-  const btn = document.getElementById('btn-nc-import');
-  btn.textContent = `Importar ${_parsedNcRows.length} linha${_parsedNcRows.length !== 1 ? 's' : ''}`;
-  btn.style.display = _parsedNcRows.length ? '' : 'none';
-
-  const prev5 = _parsedNcRows.slice(0, 5);
-  preview.innerHTML = `
-    <p style="font-size:.75rem;color:var(--muted);margin-bottom:6px">${_parsedNcRows.length} linha(s) encontrada(s) — preview das primeiras 5:</p>
-    <div style="overflow-x:auto"><table>
-      <thead><tr><th>Data OS</th><th>Técnico</th><th>OS ID</th><th>Cliente</th><th>Gravidade</th><th>Tipo</th><th>Fato concreto</th></tr></thead>
-      <tbody>${prev5.map(r => `<tr>
-        <td style="white-space:nowrap">${esc(r.dt_os_execucao||'—')}</td>
-        <td>${esc(r.tecnico_nome||'—')}</td>
-        <td style="font-family:monospace;font-size:.72rem;color:var(--muted)">${esc(r.os_id||'—')}</td>
-        <td>${esc(r.cliente_nome||'—')}</td>
-        <td>${bGrav(r.nc_gravidade)}</td>
-        <td style="color:var(--muted)">${esc(r.nc_tipo||'—')}</td>
-        <td style="max-width:200px;word-break:break-word;color:var(--muted)">${esc(r.nc_fato||'—')}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>`;
-}
-
-async function confirmNcImport() {
-  if (!_parsedNcRows.length) return;
-  const btn = document.getElementById('btn-nc-import');
-  btn.disabled = true; btn.textContent = 'Importando...';
-
-  const { error } = await db.from('nao_conformidades').insert(_parsedNcRows);
-
-  if (error) {
-    alert('Erro ao importar: ' + (error.message || JSON.stringify(error)));
-    btn.disabled = false;
-    btn.textContent = `Importar ${_parsedNcRows.length} linha(s)`;
-    return;
-  }
-
-  document.getElementById('nc-paste').value = '';
-  document.getElementById('nc-parse-preview').innerHTML = '';
-  btn.style.display = 'none';
-  _parsedNcRows = [];
-  loadNcView();
 }
 
 async function loadNcView() {
