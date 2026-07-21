@@ -679,14 +679,32 @@ document.getElementById('btn-enviar').addEventListener('click', async () => {
 
   if (error) {
     console.error('Supabase insert error:', JSON.stringify(error));
-    const msg = error.message || error.details || JSON.stringify(error);
-    toast('Erro: ' + msg, 'err');
+    toast('Não foi possível registrar. Verifique a conexão e tente novamente.', 'err');
     btn.disabled = false; btn.textContent = 'Registrar Feedback';
   } else {
     toast('Feedback registrado com sucesso!', 'ok');
-    setTimeout(() => location.reload(), 1500);
+    resetForm();
   }
 });
+
+/* Limpa o formulário após um envio bem-sucedido (sem recarregar a página) */
+function resetForm() {
+  document.getElementById('supervisor').value = '';
+  document.getElementById('nome-supervisor').value = '';
+  document.getElementById('nome-sup-wrap').style.display = 'none';
+  const tecEl = document.getElementById('tecnico');
+  tecEl.innerHTML = '<option value="">Selecione o supervisor primeiro...</option>';
+  tecEl.disabled = true;
+  document.getElementById('data').valueAsDate = new Date();
+  document.getElementById('descricao').value = '';
+  SEL.tipo = SEL.natureza = SEL.gravidade = SEL.acao = '';
+  document.querySelectorAll('.ropt').forEach(r => r.className = 'ropt');
+  document.getElementById('grav-wrap').style.display = '';
+  clearSig();
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = false; btn.textContent = 'Registrar Feedback';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 /* ===== ASSINATURA ===== */
 const sigCanvas = document.getElementById('sig-canvas');
@@ -694,14 +712,35 @@ const sigCtx = sigCanvas.getContext('2d');
 let sigDrawing = false;
 let sigEmpty = true;
 
-function initSig() {
-  const w = sigCanvas.parentElement.clientWidth;
-  if (w > 0) sigCanvas.width = w;
+/* Redefinir canvas.width limpa o contexto — reaplicamos o estilo sempre */
+function applySigStyle() {
   sigCtx.strokeStyle = '#1C2230';
   sigCtx.lineWidth = 2.5;
   sigCtx.lineCap = 'round';
   sigCtx.lineJoin = 'round';
 }
+
+function initSig() {
+  const w = sigCanvas.parentElement.clientWidth;
+  if (w > 0) sigCanvas.width = w;
+  applySigStyle();
+}
+
+/* Rotação/redimensionamento: reajusta a largura preservando o traço já feito */
+function resizeSig() {
+  const w = sigCanvas.parentElement.clientWidth;
+  if (!w || w === sigCanvas.width) return;
+  const prev = sigEmpty ? null : sigCanvas.toDataURL();
+  sigCanvas.width = w;
+  applySigStyle();
+  if (prev) {
+    const img = new Image();
+    img.onload = () => sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
+    img.src = prev;
+  }
+}
+window.addEventListener('resize', resizeSig);
+window.addEventListener('orientationchange', resizeSig);
 
 function getSigPos(e) {
   const r = sigCanvas.getBoundingClientRect();
@@ -712,10 +751,18 @@ function getSigPos(e) {
   };
 }
 
-sigCanvas.addEventListener('mousedown', e => {
-  sigDrawing = true; sigCtx.beginPath();
-  const p = getSigPos(e); sigCtx.moveTo(p.x, p.y);
-});
+/* Início do traço: desenha um ponto para que um toque simples já valha como assinatura */
+function sigStart(e) {
+  sigDrawing = true;
+  const p = getSigPos(e);
+  sigCtx.beginPath();
+  sigCtx.moveTo(p.x, p.y);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+  hideSigPh();
+}
+
+sigCanvas.addEventListener('mousedown', sigStart);
 sigCanvas.addEventListener('mousemove', e => {
   if (!sigDrawing) return;
   const p = getSigPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); hideSigPh();
@@ -723,8 +770,7 @@ sigCanvas.addEventListener('mousemove', e => {
 sigCanvas.addEventListener('mouseup', () => sigDrawing = false);
 sigCanvas.addEventListener('mouseleave', () => sigDrawing = false);
 sigCanvas.addEventListener('touchstart', e => {
-  e.preventDefault(); sigDrawing = true; sigCtx.beginPath();
-  const p = getSigPos(e); sigCtx.moveTo(p.x, p.y);
+  e.preventDefault(); sigStart(e);
 }, { passive: false });
 sigCanvas.addEventListener('touchmove', e => {
   e.preventDefault(); if (!sigDrawing) return;
